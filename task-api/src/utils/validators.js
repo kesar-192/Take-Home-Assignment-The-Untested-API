@@ -33,4 +33,16 @@ const validateUpdateTask = (body) => {
   return null;
 };
 
-module.exports = { validateCreateTask, validateUpdateTask };
+const MAX_ASSIGNEE_LENGTH = 100;
+
+const validateAssignTask = (body) => {
+  if (typeof body.assignee !== 'string' || body.assignee.trim() === '') {
+    return 'assignee is required and must be a non-empty string';
+  }
+  if (body.assignee.length > MAX_ASSIGNEE_LENGTH) {
+    return `assignee must be ${MAX_ASSIGNEE_LENGTH} characters or fewer`;
+  }
+  return null;
+};
+
+module.exports = { validateCreateTask, validateUpdateTask, validateAssignTask };
