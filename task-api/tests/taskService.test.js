@@ -94,12 +94,12 @@ describe('taskService.getPaginated', () => {
     for (let i = 1; i <= 12; i++) taskService.create({ title: `T${i}` });
   });
 
-  test('BUG: page 1 returns the first `limit` tasks', () => {
+  test('page 1 returns the first `limit` tasks (pagination offset fixed)', () => {
     const result = taskService.getPaginated(1, 5);
     expect(result.map((t) => t.title)).toEqual(['T1', 'T2', 'T3', 'T4', 'T5']);
   });
 
-  test('BUG: last partial page returns the remaining tasks', () => {
+  test('last partial page returns the remaining tasks (pagination offset fixed)', () => {
     const result = taskService.getPaginated(3, 5);
     expect(result.map((t) => t.title)).toEqual(['T11', 'T12']);
   });
@@ -168,6 +168,35 @@ describe('taskService.remove', () => {
 
   test('returns false for an unknown id', () => {
     expect(taskService.remove('nope')).toBe(false);
+  });
+});
+
+describe('taskService.assignTask', () => {
+  test('sets the assignee on the task', () => {
+    const task = taskService.create({ title: 'A' });
+    const updated = taskService.assignTask(task.id, 'Priya');
+
+    expect(updated.assignee).toBe('Priya');
+    expect(taskService.findById(task.id).assignee).toBe('Priya');
+  });
+
+  test('overwrites an existing assignee', () => {
+    const task = taskService.create({ title: 'A' });
+    taskService.assignTask(task.id, 'Priya');
+    const updated = taskService.assignTask(task.id, 'Sam');
+
+    expect(updated.assignee).toBe('Sam');
+  });
+
+  test('returns null for an unknown id', () => {
+    expect(taskService.assignTask('nope', 'Priya')).toBeNull();
+  });
+
+  test('does not change other fields', () => {
+    const task = taskService.create({ title: 'A', priority: 'high', status: 'in_progress' });
+    const updated = taskService.assignTask(task.id, 'Priya');
+
+    expect(updated).toMatchObject({ title: 'A', priority: 'high', status: 'in_progress' });
   });
 });
 

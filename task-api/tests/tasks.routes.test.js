@@ -105,12 +105,12 @@ describe('GET /tasks', () => {
       for (let i = 1; i <= 12; i++) await createTask({ title: `T${i}` });
     });
 
-    test('BUG: page=1&limit=5 returns the first five tasks', async () => {
+    test('page=1&limit=5 returns the first five tasks (pagination offset fixed)', async () => {
       const res = await request(app).get('/tasks?page=1&limit=5');
       expect(res.body.map((t) => t.title)).toEqual(['T1', 'T2', 'T3', 'T4', 'T5']);
     });
 
-    test('BUG: page=2&limit=5 returns tasks 6-10', async () => {
+    test('page=2&limit=5 returns tasks 6-10 (pagination offset fixed)', async () => {
       const res = await request(app).get('/tasks?page=2&limit=5');
       expect(res.body.map((t) => t.title)).toEqual(['T6', 'T7', 'T8', 'T9', 'T10']);
     });
@@ -244,6 +244,62 @@ describe('PATCH /tasks/:id/complete', () => {
     await new Promise((r) => setTimeout(r, 15));
     const second = await request(app).patch(`/tasks/${task.id}/complete`);
     expect(second.body.completedAt).toBe(first.body.completedAt);
+  });
+});
+
+describe('PATCH /tasks/:id/assign', () => {
+  test('assigns the task and returns it', async () => {
+    const task = await createTask();
+    const res = await request(app).patch(`/tasks/${task.id}/assign`).send({ assignee: 'Priya' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: task.id, assignee: 'Priya' });
+  });
+
+  test('trims surrounding whitespace on the assignee name', async () => {
+    const task = await createTask();
+    const res = await request(app).patch(`/tasks/${task.id}/assign`).send({ assignee: '  Priya  ' });
+    expect(res.body.assignee).toBe('Priya');
+  });
+
+  test('reassigning overwrites the previous assignee', async () => {
+    const task = await createTask();
+    await request(app).patch(`/tasks/${task.id}/assign`).send({ assignee: 'Priya' });
+    const res = await request(app).patch(`/tasks/${task.id}/assign`).send({ assignee: 'Sam' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.assignee).toBe('Sam');
+  });
+
+  test('returns 404 for an unknown id', async () => {
+    const res = await request(app).patch('/tasks/nope/assign').send({ assignee: 'Priya' });
+    expect(res.status).toBe(404);
+  });
+
+  test.each([
+    ['missing assignee', {}],
+    ['empty string', { assignee: '' }],
+    ['whitespace-only string', { assignee: '   ' }],
+    ['non-string assignee', { assignee: 42 }],
+    ['assignee over 100 characters', { assignee: 'a'.repeat(101) }],
+  ])('rejects %s with 400', async (_label, body) => {
+    const task = await createTask();
+    const res = await request(app).patch(`/tasks/${task.id}/assign`).send(body);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(expect.any(String));
+  });
+
+  test('validation runs before the 404 check', async () => {
+    const res = await request(app).patch('/tasks/nope/assign').send({ assignee: '' });
+    expect(res.status).toBe(400);
+  });
+
+  test('does not change other fields on the task', async () => {
+    const task = await createTask({ priority: 'high', status: 'in_progress' });
+    const res = await request(app).patch(`/tasks/${task.id}/assign`).send({ assignee: 'Priya' });
+
+    expect(res.body).toMatchObject({ priority: 'high', status: 'in_progress' });
   });
 });
 
