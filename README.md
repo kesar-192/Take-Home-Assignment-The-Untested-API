@@ -61,11 +61,11 @@ ASSIGNMENT.md               # Full brief — read this first
 |----------|---------------------------|------------------------------------------|
 | `GET`    | `/tasks`                  | List all tasks. Supports `?status=`, `?page=`, `?limit=` |
 | `POST`   | `/tasks`                  | Create a new task                        |
-| `PUT`    | `/tasks/:id`              | Full update of a task                    |
+| `PUT`    | `/tasks/:id`              | Partial update of a task (merges provided fields) |
 | `DELETE` | `/tasks/:id`              | Delete a task (returns 204)              |
 | `PATCH`  | `/tasks/:id/complete`     | Mark a task as complete                  |
 | `GET`    | `/tasks/stats`            | Counts by status + overdue count         |
-| `PATCH`  | `/tasks/:id/assign`       | **Assign a task to a user** _(to implement)_ |
+| `PATCH`  | `/tasks/:id/assign`       | Assign a task to someone (`{ "assignee": "string" }`) |
 
 ### Task shape
 
@@ -74,7 +74,7 @@ ASSIGNMENT.md               # Full brief — read this first
   "id": "uuid",
   "title": "string",
   "description": "string",
-  "status": "pending | in-progress | completed",
+  "status": "todo | in_progress | done",
   "priority": "low | medium | high",
   "dueDate": "ISO 8601 or null",
   "completedAt": "ISO 8601 or null",
@@ -101,7 +101,30 @@ curl "http://localhost:3000/tasks?status=pending&page=1&limit=10"
 curl -X PATCH http://localhost:3000/tasks/<id>/complete
 ```
 
+**Assign a task**
+```bash
+curl -X PATCH http://localhost:3000/tasks/<id>/assign \
+  -H "Content-Type: application/json" \
+  -d '{"assignee": "Priya"}'
+```
+`assignee` must be a non-empty string (max 100 chars, trimmed). Reassigning an already-assigned task overwrites the previous assignee and returns 200. A missing/unknown `id` returns 404.
+
 ---
+
+## Running the tests
+
+`npm test` (from `task-api/`) runs 83 tests. **13 of them fail on purpose** — each is
+prefixed `BUG:` and documents a real bug in the original code (see
+[`task-api/BUGS.md`](./task-api/BUGS.md) for the full write-up of each one, including which
+one was fixed). A red suite here is expected; it's the test suite doubling as the bug report's
+evidence, not a broken build.
+
+```
+Test Suites: 2 failed, 2 total
+Tests:       13 failed, 70 passed, 83 total
+```
+
+Coverage sits at ~98.7% (`npm run coverage`).
 
 ## What to Submit
 
